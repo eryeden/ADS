@@ -199,3 +199,6 @@ $RECYCLE.BIN/
 # For autocomplete .json file
 #
 compile_commands.json
+
+# For Clion configuration files
+.idea
