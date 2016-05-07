@@ -10,7 +10,7 @@ using namespace std;
 
 
 Segment::Segment()
-        :is_enable(true)
+        : is_enable(true)
         , id(0)
         , no_segments(0)
 {
@@ -18,7 +18,7 @@ Segment::Segment()
 }
 
 Segment::Segment(unsigned int no_)
-        :Segment()
+        : Segment()
         , no_segments(no_)
 {
     ;
@@ -27,7 +27,7 @@ Segment::Segment(unsigned int no_)
 
 template <typename T>
 AdsManager::AdsManager()
-        :t(0) //経過時間
+        : t(0) //経過時間
 {
     ;
 }
@@ -56,5 +56,11 @@ unsigned long AdsManager::AddSegment(std::shared_ptr<Segment<T>> segment_, unsig
 
 
 
+//積分計算
+template <typename T>
+void AdsManager::Update() {
 
+
+
+}
 
