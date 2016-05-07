@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <memory>
 #include <Eigen/Dense>
 
 
@@ -42,24 +43,75 @@ namespace ADS{
 
     // ADS内のセグメント挙動を記述するインターフェイスクラス？ これを継承して具体的なセグメントのシステムを記述する
     // 各個セグメントにおけるパラメータの設定が問題になる
-    template <typename T> class SegmentImplementation{
+    /*
+     * セグメントクラスがやること
+     *
+     * １セグメントのシステムを書く
+     * システムは
+     * r_dot = f(t, P, z, R, idx)
+     * (t:時間、P:系のパラメータ、z:系全体から定まるベクトル、R:系全体を示す状態ベクトル、idx:セグメントのINDEX)
+     * として書かれる
+     *
+     * また、系全体から定まるベクトルzを計算する関数を書く
+     * これは
+     * z = g(t, P, R)
+     * (t:時間、P:系のパラメータ、R:系全体を示す状態ベクトル)
+     * として書かれる
+     *
+     * Rについて これはAdsManager内で管理される
+     * Rは系全体の状態を示す、実質行列となる
+     * セグメントiにおける状態を示すベクトルをr_iとすれば、Rは
+     * R＝{r_1 r_2 ... r_n} (n個のセグメント)
+     * となる
+     * これはvectorで示すことにする
+     *
+     * Pについて これはAdsManager内で管理される
+     * Pはこのセグメント群（おなじシステムで記述されるセグメントの集まり）すべてのパラメータを示す、多くの実装では行列になると思われる
+     * セグメントiにおけるパラメータを示すベクトルをp_iとすれば、Pは
+     * P={p_1 p_2 ... p_n} (n個のセグメント)
+     * となる
+     * なのでPはvectorで示すことになる
+     *
+     * */
+    template <typename T> class Segment{
 
     public:
 
-        SegmentImplementation();
+        Segment();
+        Segment(unsigned int no_);
 
-        //更新関数 1タイムステップ後の自立個における自己状態ベクトルを計算する
-        // 入力として、システム系全体の状態ベクトルR、系全体から定まる拘束？ベクトルz、を受け取る
-        virtual T Update(const std::vector<T> &R, const std::vector<T> &z) = 0;
-        // 入力として、系の状態ベクトルzのみを受け取る 実際システムを書くとすればこっちの方が多い気がする
-        virtual T Update(const std::vector<T> &R) = 0;
+
+        //セグメントのシステム
+//        * １セグメントのシステムを書く
+//                * システムは
+//        * r_dot = f(t, P, z, R, idx)
+//                  * (t:時間、P:系のパラメータ、z:系全体から定まるベクトル、R:系全体を示す状態ベクトル、idx:セグメントのINDEX)
+//        * として書かれる
+        virtual T f(double t_
+                , const std::vector<std::vector<std::vector<double>>> &P_
+                , const std::vector<double> &z_
+                , const std::vector<std::vector <T>> &R_
+                , unsigned int idx_) = 0;
+
 
         // 入力として、系の状態ベクトルを受け取り、系全体から定まるベクトルを返す
-        virtual T GlobalEffects(const std::vector<T> &R) = 0;
+//        * z = g(t, P, R)
+//              * (t:時間、P:系のパラメータ、R:系全体を示す状態ベクトル)
+//        * として書かれる
+        virtual std::vector<double> g(double t_
+                , const std::vector<std::vector<std::vector<double>>> &P_
+                , const std::vector<std::vector <T>> &R_) = 0;
 
 
-        // ID設定関数 インラインインプリメント
+        //このシステムで記述されるセグメント数の設定
+        void SetNo(const unsigned int no_){no_segments = no_;};
+        //セグメント数の取得
+        const unsigned int GetNo(){return no_segments;};
+
+        // 組み込みセグメントIDの設定
         void SetID(const unsigned int id_){id = id_;};
+        //セグメントIDの取得
+        const unsigned int GetID(){return id;};
 
         //セグメントの有効化、無効化
         void Enable(){is_enable = true;};
@@ -68,34 +120,79 @@ namespace ADS{
 
 
     private:
-        unsigned int id;		// シミュレーションマネージャ登録時にふられるID
+
+
+        unsigned int no_segments; //セグメント数
+
+        unsigned int id;		// 組み込みセグメントID
 
         bool is_enable;         //有効化
 
-        T r; //状態
-        std::vector<double> param; //パラメータ
+
     };
 
     //ここでは各々のセグメントの時間発展とそれらの組み込み、初期状態設定を行う
+    /*
+     * AdsManagerがホストする状態量としては
+     *
+     * 経過時間:t
+     * 系の状態ベクトル:R
+     * 系のパラメータ:P
+     *
+     * セグメントの実装から決まったこと
+     * 系の状態ベクトルRはツリー構造をもつ
+     * なので実装はR:vector<vector<T>>となる
+     *
+     * また、それぞれのセグメントにおけるパラメータ設定も、ツリー構造とした
+     * なのでP:vector<vector<vector<double>>>となる
+     *TODO: パラメータベクトルは使いやすそうなクラスかなんかにする
+     *
+     *
+     * */
+
     template <typename T> class AdsManager{
     public:
 
         AdsManager();
 
         //セグメントの登録を行う、セグメントIDを返す
-        unsigned int InsertSegment(SegmentImplementation<T> *);
+        /*
+         * セグメントの登録を行う
+         * 処理の流れとしては
+         *
+         * セグメントストレージにプッシュバック
+         * 個数分の状態量、パラメータベクトルの確保を行う
+         *
+         * セグメントインデックスを返す
+         *
+         * */
+        unsigned long AddSegment(std::shared_ptr<Segment<T>>);
+        //セグメント数の設定も行う
+        unsigned long AddSegment(std::shared_ptr<Segment<T>>, unsigned int no_segments_);
 
-        //各セグメントにおける要素数の設定
-        void SetNumberOfSegments(const unsigned int id_, const unsigned int number_of_elements_);
+
+        //パラメータ設定、初期値設定インターフェース
+
 
         //各セグメントの状態を更新する
-        void update();
+        /*
+         * 全体の積分計算を行う
+         * */
+        void Update();
 
 
 
     private:
 
-        std::vector<SegmentImplementation<T> *> segments;
+        //セグメント
+        std::vector<std::shared_ptr<Segment<T>>> segments;
+        //状態量ツリー
+        std::vector<std::vector<T>> R;
+        //パラメータツリー
+        std::vector<std::vector<std::vector<double>>> P;
+
+        //経過時間
+        double t;
 
     };
 
