@@ -1,1 +1,4 @@
 # ADS
+
+##License
+see LICENSE
