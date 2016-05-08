@@ -1,6 +1,6 @@
 #For OpenGL testing
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.2)
 project(ADS)
 
 #For auto-complete

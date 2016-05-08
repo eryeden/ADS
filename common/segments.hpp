@@ -88,9 +88,9 @@ namespace ADS{
 //                  * (t:時間、P:系のパラメータ、z:系全体から定まるベクトル、R:系全体を示す状態ベクトル、idx:セグメントのINDEX)
 //        * として書かれる
         virtual T f(double t_
-                , const std::vector<std::vector<std::vector<double>>> &P_
+                , const std::vector<std::vector<std::vector<double> > > &P_
                 , const std::vector<double> &z_
-                , const std::vector<std::vector <T>> &R_
+                , const std::vector<std::vector <T> > &R_
                 , unsigned int idx_) = 0;
 
 
@@ -99,8 +99,8 @@ namespace ADS{
 //              * (t:時間、P:系のパラメータ、R:系全体を示す状態ベクトル)
 //        * として書かれる
         virtual std::vector<double> g(double t_
-                , const std::vector<std::vector<std::vector<double>>> &P_
-                , const std::vector<std::vector <T>> &R_) = 0;
+                , const std::vector<std::vector<std::vector<double> > > &P_
+                , const std::vector<std::vector <T> > &R_) = 0;
 
 
         //このシステムで記述されるセグメント数の設定
@@ -166,9 +166,9 @@ namespace ADS{
          * セグメントインデックスを返す
          *
          * */
-        unsigned long AddSegment(std::shared_ptr<Segment<T>>);
+        unsigned long AddSegment(std::shared_ptr<Segment<T> >);
         //セグメント数の設定も行う
-        unsigned long AddSegment(std::shared_ptr<Segment<T>>, unsigned int no_segments_);
+        unsigned long AddSegment(std::shared_ptr<Segment<T> >, unsigned int no_segments_);
 
 
         //パラメータ設定、初期値設定インターフェース
@@ -185,11 +185,11 @@ namespace ADS{
     private:
 
         //セグメント
-        std::vector<std::shared_ptr<Segment<T>>> segments;
+        std::vector<std::shared_ptr<Segment<T> > > segments;
         //状態量ツリー
-        std::vector<std::vector<T>> R;
+      std::vector<std::vector<T> > R;
         //パラメータツリー
-        std::vector<std::vector<std::vector<double>>> P;
+        std::vector<std::vector<std::vector<double> > > P;
 
         //経過時間
         double t;
