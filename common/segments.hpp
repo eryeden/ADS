@@ -39,10 +39,50 @@
 
  */
 
-namespace ADS{
+namespace ADS {
 
     // ADS内のセグメント挙動を記述するインターフェイスクラス？ これを継承して具体的なセグメントのシステムを記述する
     // 各個セグメントにおけるパラメータの設定が問題になる
+
+
+    /*
+     * バランス
+     * 負荷配分
+     *
+     */
+
+    //状態量ツリー
+    template<typename T>
+    class TreeState {
+    public:
+
+        TreeState();
+        TreeState(const std::vector<std::vector<T> >&);
+        TreeState(const TreeState&);
+
+
+        //vector<vector <T>> の本体を返す
+        std::vector<std::vector<T> >& GetTree() { return R; };
+        //本体を更新
+        //void SetTree(std::vector<std::vector<T> >& in_) {R = in_;};
+
+        //RVOSによる最適化が働くのでそのまま帰すことにする
+        //MOVEセマンティクスは考えない
+        const TreeState<T> operator+(const TreeState<T>&) const;
+
+        const TreeState<T> operator-(const TreeState<T>&) const;
+
+        const TreeState<T> operator*(double) const;
+        //const TreeState<T> operator/(double, const TreeState<T> &);
+
+    private:
+
+        //コア
+        //状態量ツリー
+        std::vector<std::vector<T> > R;
+
+    };
+
     /*
      * セグメントクラスがやること
      *
@@ -73,13 +113,14 @@ namespace ADS{
      * なのでPはvectorで示すことになる
      *
      * */
-    template <typename T> class Segment{
+    template<typename T>
+    class Segment {
 
     public:
 
         Segment();
-        Segment(unsigned int no_);
 
+        Segment(unsigned int no_);
 
         //セグメントのシステム
 //        * １セグメントのシステムを書く
@@ -88,43 +129,51 @@ namespace ADS{
 //                  * (t:時間、P:系のパラメータ、z:系全体から定まるベクトル、R:系全体を示す状態ベクトル、idx:セグメントのINDEX)
 //        * として書かれる
         virtual T f(double t_
-                , const std::vector<std::vector<std::vector<double> > > &P_
-                , const std::vector<double> &z_
-                , const std::vector<std::vector <T> > &R_
-                , unsigned int idx_) = 0;
+                , const std::vector<std::vector<std::vector<double> > >& P_
+                , const std::vector<double>& z_
+                , const std::vector<std::vector<T> >& R_
+                , unsigned long idx_) = 0;
+
+        virtual T f(double t_
+                , const std::vector<std::vector<std::vector<double> > >& P_
+                , const std::vector<double>& z_
+                , const TreeState& R_
+                , unsigned long idx_) = 0;
 
 
         // 入力として、系の状態ベクトルを受け取り、系全体から定まるベクトルを返す
 //        * z = g(t, P, R)
 //              * (t:時間、P:系のパラメータ、R:系全体を示す状態ベクトル)
 //        * として書かれる
-        virtual std::vector<double> g(double t_
-                , const std::vector<std::vector<std::vector<double> > > &P_
-                , const std::vector<std::vector <T> > &R_) = 0;
+        virtual std::vector<double> g(double t_, const std::vector<std::vector<std::vector<double> > >& P_,
+                const std::vector<std::vector<T> >& R_) = 0;
 
+        virtual std::vector<double> g(double t_
+                , const std::vector<std::vector<std::vector<double> > >& P_
+                , const TreeState& R_) = 0;
 
         //このシステムで記述されるセグメント数の設定
-        void SetNo(const unsigned int no_){no_segments = no_;};
+        void SetNo(const unsigned int no_) { no_segments = no_; };
+
         //セグメント数の取得
-        const unsigned int GetNo(){return no_segments;};
+        const unsigned int GetNo() { return no_segments; };
 
         // 組み込みセグメントIDの設定
-        void SetID(const unsigned int id_){id = id_;};
+        void SetID(const unsigned int id_) { id = id_; };
+
         //セグメントIDの取得
-        const unsigned int GetID(){return id;};
+        const unsigned int GetID() { return id; };
 
         //セグメントの有効化、無効化
-        void Enable(){is_enable = true;};
-        void Disable(){is_enable = false;};
+        void Enable() { is_enable = true; };
 
-
+        void Disable() { is_enable = false; };
 
     private:
 
-
         unsigned int no_segments; //セグメント数
 
-        unsigned int id;		// 組み込みセグメントID
+        unsigned int id;        // 組み込みセグメントID
 
         bool is_enable;         //有効化
 
@@ -150,7 +199,8 @@ namespace ADS{
      *
      * */
 
-    template <typename T> class AdsManager{
+    template<typename T>
+    class AdsManager {
     public:
 
         AdsManager();
@@ -167,6 +217,7 @@ namespace ADS{
          *
          * */
         unsigned long AddSegment(std::shared_ptr<Segment<T> >);
+
         //セグメント数の設定も行う
         unsigned long AddSegment(std::shared_ptr<Segment<T> >, unsigned int no_segments_);
 
@@ -180,22 +231,23 @@ namespace ADS{
          * */
         void Update();
 
-
-
     private:
 
         //セグメント
         std::vector<std::shared_ptr<Segment<T> > > segments;
         //状態量ツリー
-      std::vector<std::vector<T> > R;
+        //std::vector<std::vector<T> > R;
+        TreeState R;
         //パラメータツリー
         std::vector<std::vector<std::vector<double> > > P;
 
         //経過時間
         double t;
 
-    };
+        //タイムピッチ
+        double dt;
 
+    };
 
 
 };
